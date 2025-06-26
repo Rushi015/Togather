@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "target": "es2020",   // Use a more recent version of ECMAScript for modern features
+    "module": "NodeNext",  // This should work for ES Modules
+    "moduleResolution": "NodeNext",  // Ensures compatibility with Node.js ES module system
+    "outDir": "./dist",
+    "rootDir": "./src",    // Ensures TypeScript knows where your source files are
+    "esModuleInterop": true,  // Helps with CommonJS compatibility
+    "forceConsistentCasingInFileNames": true, 
+    "strict": true, 
+    "skipLibCheck": true, 
+    "resolveJsonModule": true,  // Optional, for importing JSON files as modules
+    "allowSyntheticDefaultImports": true  // Useful if you are importing CommonJS modules that use default exports
+  }
+}
