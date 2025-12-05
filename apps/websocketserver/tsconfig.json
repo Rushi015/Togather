@@ -3,8 +3,8 @@
     "target": "es2020",   // Use a more recent version of ECMAScript for modern features
     "module": "NodeNext",  // This should work for ES Modules
     "moduleResolution": "NodeNext",  // Ensures compatibility with Node.js ES module system
-    "outDir": "./dist",
-    "rootDir": "./src",    // Ensures TypeScript knows where your source files are
+    "outDir": "dist",
+    "rootDir": "src",    // Ensures TypeScript knows where your source files are
     "esModuleInterop": true,  // Helps with CommonJS compatibility
     "forceConsistentCasingInFileNames": true, 
     "strict": true, 
