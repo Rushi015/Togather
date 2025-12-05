@@ -1,33 +1,42 @@
-import * as Phaser from 'phaser';
+// components/spaces/RemotePlayer.ts
+import * as Phaser from "phaser";
 
 export default class RemotePlayer {
   private sprite: Phaser.GameObjects.Sprite;
   private nameText: Phaser.GameObjects.Text;
+
+  private avatar: string;
+  private username: string;
+
   private lastPosition = { x: 0, y: 0 };
   private targetPosition = { x: 0, y: 0 };
   private lastUpdateTime = 0;
-  private avatar: string;
-  private currentDirection: string = 'down';
-  private isMoving: boolean = false;
+
+  private currentDirection = "down";
+  private isMoving = false;
 
   constructor(
     private scene: Phaser.Scene,
-    private id: string,
-    private username: string,
+    public id: string,
+    username: string,
     avatar: string,
     x: number,
     y: number
   ) {
+    this.username = username;
     this.avatar = avatar;
-    this.sprite = this.scene.add.sprite(x, y, avatar, 0);
-    this.sprite.setOrigin(0.5, 0.5).setDepth(1);
 
-    this.nameText = this.scene.add.text(x, y - 20, username, {
-      fontSize: '12px',
-      color: '#fff',
-      stroke: '#000',
-      strokeThickness: 3,
-    }).setOrigin(0.5, 1).setDepth(2);
+    this.sprite = this.scene.add.sprite(x, y, avatar, 0).setDepth(5);
+
+    this.nameText = this.scene.add
+      .text(x, y - 20, username, {
+        fontSize: "12px",
+        color: "#ffffff",
+        stroke: "#000000",
+        strokeThickness: 3,
+      })
+      .setOrigin(0.5, 1)
+      .setDepth(6);
 
     this.lastPosition = { x, y };
     this.targetPosition = { x, y };
@@ -36,12 +45,13 @@ export default class RemotePlayer {
   updatePosition(
     x: number,
     y: number,
-    direction: string = 'down',
-    isMoving: boolean = false
+    direction: string,
+    isMoving: boolean
   ) {
     this.lastPosition = { ...this.targetPosition };
     this.targetPosition = { x, y };
     this.lastUpdateTime = Date.now();
+
     this.currentDirection = direction;
     this.isMoving = isMoving;
   }
@@ -53,18 +63,17 @@ export default class RemotePlayer {
     const x = Phaser.Math.Linear(this.lastPosition.x, this.targetPosition.x, t);
     const y = Phaser.Math.Linear(this.lastPosition.y, this.targetPosition.y, t);
 
-    const animKey = `${this.avatar}-walk-${this.currentDirection}`;
-
     if (this.isMoving) {
-      if (
-        !this.sprite.anims.isPlaying ||
-        this.sprite.anims.currentAnim?.key !== animKey
-      ) {
-        this.sprite.anims.play(animKey, true);
+      const key = `${this.avatar}-walk-${this.currentDirection}`;
+      if (!this.sprite.anims.isPlaying || this.sprite.anims.currentAnim?.key !== key) {
+        this.sprite.anims.play(key, true);
       }
     } else {
-      this.sprite.anims.stop();
-      this.sprite.setFrame(0); // fallback idle
+      // play correct idle frame (NO animation needed)
+      if (this.currentDirection === "left") this.sprite.setFrame(12);
+      else if (this.currentDirection === "right") this.sprite.setFrame(0);
+      else if (this.currentDirection === "up") this.sprite.setFrame(6);
+      else this.sprite.setFrame(18);
     }
 
     this.sprite.setPosition(x, y);

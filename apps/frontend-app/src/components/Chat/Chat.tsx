@@ -5,40 +5,58 @@ import { useEffect, useRef, useState } from "react";
 import { useGameStore } from "@/stores/useGameStore";
 
 export default function Chat() {
-  const { sendMessage, messages, connectSocket } = useGameStore();
+  const { username, socket, messages, addMessage } = useGameStore();
   const [message, setMessage] = useState("");
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
+  // Listen for chat messages from the shared socket
   useEffect(() => {
-    connectSocket(); // 👈 Connect once on mount
-  }, []);
+    if (!socket) return;
 
+    const handleChatMessage = (msg: any) => {
+      addMessage(msg);
+    };
+
+    socket.on("chat-message", handleChatMessage);
+
+    return () => {
+      socket.off("chat-message", handleChatMessage);
+    };
+  }, [socket]);
+
+  // Auto-scroll chat window
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!message.trim()) return;
-    sendMessage(message.trim());
+    if (!message.trim() || !socket) return;
+
+    const msg = {
+      user: username ?? "Unknown",
+      message: message.trim(),
+    };
+
+    socket.emit("chat-message", msg);
     setMessage("");
   };
 
   return (
-    <div className="bg-white h-screen w-screen p-4 text-black flex flex-col">
-      <h1 className="text-xl mb-4">All messages appear here</h1>
+    <div className="bg-white h-screen w-96 p-4 text-black flex flex-col border-l">
+      <h1 className="text-xl mb-4">Chat</h1>
 
       <div className="flex-1 overflow-y-auto border p-4 rounded-md bg-gray-100 space-y-2">
         {messages && messages.length > 0 ? (
-          
           messages.map((msg, idx) => (
             <div key={idx} className="bg-white p-2 rounded shadow text-sm">
-              <strong>{msg.user || "Unknown"}:</strong> {msg.message || ""}
+              <strong>{msg.user}:</strong> {msg.message}
             </div>
           ))
         ) : (
           <div className="text-gray-500">No messages yet</div>
         )}
+
         <div ref={bottomRef} />
       </div>
 

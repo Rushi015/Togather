@@ -1,35 +1,29 @@
+// webSocketServer/src/index.ts
 import express from "express";
 import cors from "cors";
 import http from "http";
 import { Server, Socket } from "socket.io";
 
-interface UserData {
+type UserData = {
   id: string;
   username: string;
   avatar: string;
   position: { x: number; y: number };
-}
+  roomId?: string;
+};
 
-interface PlayerMoveData {
-  playerId: string;
+type PlayerMoveData = {
+  playerId?: string;
+  roomId?: string;
   position: { x: number; y: number };
-  animation: {
-    direction: string;
-    isMoving: boolean;
-  };
-}
+  animation: { direction: string; isMoving: boolean };
+};
 
-interface JoinRoomData {
+type JoinRoomData = {
   username: string;
   avatar: string;
-  id: string;
-  position: { x: number; y: number };
-}
-
-interface ChatMessage {
-  user: string;
-  message: string;
-}
+  position?: { x: number; y: number };
+};
 
 const app = express();
 app.use(cors());
@@ -42,42 +36,57 @@ const io = new Server(server, {
   },
 });
 
-const users = new Map<string, UserData>();
-const chatHistory: ChatMessage[] = [];
+const users = new Map<string, UserData>(); // socketId -> UserData
+const chatHistory = new Map<string, { user: string; message: string }[]>(); // per-room
 
 io.on("connection", (socket: Socket) => {
-  console.log("✅ User connected:", socket.id);
+  console.log("✅ Socket connected:", socket.id);
 
-  socket.on("join-room", (_roomId: string, userData: JoinRoomData) => {
+  socket.on("join-room", (roomId: string, userData: JoinRoomData) => {
+    if (!roomId) return;
+    socket.join(roomId);
+    socket.data.roomId = roomId;
+
+    const initialPos = userData.position || { x: 400, y: 300 };
     users.set(socket.id, {
       id: socket.id,
       username: userData.username,
       avatar: userData.avatar,
-      position: userData.position || { x: 400, y: 300 },
+      position: initialPos,
+      roomId,
     });
 
-    // Send existing users
-    const existingUsers = Array.from(users.entries())
-      .filter(([id]) => id !== socket.id)
-      .map(([id, data]) => ({ id, ...data }));
+    if (!chatHistory.has(roomId)) chatHistory.set(roomId, []);
+
+    // send existing users only in the same room (exclude requester)
+    const existingUsers = Array.from(users.values())
+      .filter((u) => u.roomId === roomId && u.id !== socket.id)
+      .map((u) => ({ id: u.id, username: u.username, avatar: u.avatar, position: u.position }));
+
     socket.emit("existing-users", existingUsers);
 
-    // Send chat history
-    socket.emit("chat-history", chatHistory);
+    // send chat history for this room
+    socket.emit("chat-history", chatHistory.get(roomId) || []);
 
-    // Notify others
-    socket.broadcast.emit("user-joined", {
+    // notify others in the room
+    socket.to(roomId).emit("user-joined", {
       id: socket.id,
-      ...userData,
-      position: userData.position || { x: 400, y: 300 },
+      username: userData.username,
+      avatar: userData.avatar,
+      position: initialPos,
     });
+
+    console.log(`User ${socket.id} joined room ${roomId}`);
   });
 
   socket.on("player-move", (data: PlayerMoveData) => {
-    if (!users.has(socket.id)) return;
-    users.get(socket.id)!.position = data.position;
+    const roomId = socket.data.roomId as string | undefined;
+    if (!roomId) return;
+    // update stored pos
+    const rec = users.get(socket.id);
+    if (rec) rec.position = data.position;
 
-    socket.broadcast.emit("player-move", {
+    socket.to(roomId).emit("player-move", {
       playerId: socket.id,
       position: data.position,
       animation: data.animation,
@@ -85,21 +94,32 @@ io.on("connection", (socket: Socket) => {
   });
 
   socket.on("chat-message", ({ user, message }) => {
-    const msg: ChatMessage = { user, message };
-    chatHistory.push(msg);
-    if (chatHistory.length > 50) chatHistory.shift();
+    const roomId = socket.data.roomId as string | undefined;
+    if (!roomId) return;
+    const msg = { user, message };
+    const roomMsgs = chatHistory.get(roomId) || [];
+    roomMsgs.push(msg);
+    if (roomMsgs.length > 200) roomMsgs.shift();
+    chatHistory.set(roomId, roomMsgs);
 
-    io.emit("chat-message", msg);
+    io.to(roomId).emit("chat-message", msg);
   });
 
-  socket.on("disconnect", () => {
+  socket.on("disconnect", (reason) => {
+    const rec = users.get(socket.id);
+    const roomId = socket.data.roomId as string | undefined;
+
     users.delete(socket.id);
-    socket.broadcast.emit("user-left", socket.id);
-    console.log("❌ User disconnected:", socket.id);
+
+    if (roomId) {
+      socket.to(roomId).emit("user-left", socket.id);
+    }
+
+    console.log("❌ Socket disconnected:", socket.id, reason);
   });
 });
 
 const PORT = process.env.PORT || 8000;
 server.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`🚀 Socket server running on port ${PORT}`);
 });

@@ -1,3 +1,5 @@
+"use client";
+
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -11,13 +13,12 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
 import Wrapper from "@/components/global/wrapper";
 import Container from "@/components/global/container";
 import { useRouter } from "next/navigation";
 import { useGameStore } from "@/stores/useGameStore";
 
-const avatars = ["adam", "ash", "lucy", "nancy" ];
+const avatars = ["adam", "ash", "lucy", "nancy"];
 
 const joinSpaceSchema = z.object({
   roomName: z.string().min(1, "Room name is required"),
@@ -30,6 +31,7 @@ type JoinSpaceData = z.infer<typeof joinSpaceSchema>;
 const ChatForm = () => {
   const router = useRouter();
   const setUserInfo = useGameStore((state) => state.setUserInfo);
+
   const form = useForm<JoinSpaceData>({
     resolver: zodResolver(joinSpaceSchema),
     defaultValues: {
@@ -39,23 +41,29 @@ const ChatForm = () => {
     },
   });
 
-   const handleSubmit = (data: JoinSpaceData) => {
+  const handleSubmit = (data: JoinSpaceData) => {
+    // Store ONLY username + avatar in Zustand
     setUserInfo({
       username: data.name,
       avatar: data.avatar,
-      room: data.roomName,
+      room: data.roomName
     });
-    router.push("/spaces");
+
+    // Redirect to the dynamic room route
+   router.push(`/spaces/${data.roomName}?name=${data.name}&avatar=${data.avatar}`);
+
   };
+
   return (
     <Wrapper>
       <Container>
-        <div className="m-7 ">
+        <div className="m-7">
           <Form {...form}>
             <form
               onSubmit={form.handleSubmit(handleSubmit)}
               className="space-y-6 max-w-md mx-auto"
             >
+              {/* Room Name */}
               <FormField
                 control={form.control}
                 name="roomName"
@@ -69,6 +77,8 @@ const ChatForm = () => {
                   </FormItem>
                 )}
               />
+
+              {/* User Name */}
               <FormField
                 control={form.control}
                 name="name"
@@ -95,9 +105,9 @@ const ChatForm = () => {
                         {avatars.map((src, index) => (
                           <img
                             key={index}
-                            src={`/assets/Avatars/${src}.png`} // dynamic image path
+                            src={`/assets/Avatars/${src}.png`}
                             alt={`Avatar ${index + 1}`}
-                            onClick={() => field.onChange(src)} // src is "adam" or "ash"
+                            onClick={() => field.onChange(src)}
                             className={`w-30 h-30 rounded-lg cursor-pointer border-4 transition-all duration-300 ${
                               field.value === src
                                 ? "border-blue-500 scale-110"

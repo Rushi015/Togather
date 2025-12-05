@@ -1,13 +1,13 @@
 import { create } from "zustand";
-import { io, Socket } from "socket.io-client";
+import { persist } from "zustand/middleware";
+import { Socket } from "socket.io-client";
 
 type ChatMessage = {
   user: string;
   message: string;
-  timestamp?: string;
 };
 
-type GameState = {
+interface GameState {
   username: string;
   avatar: string;
   room: string;
@@ -15,61 +15,46 @@ type GameState = {
   messages: ChatMessage[];
 
   setUserInfo: (data: { username: string; avatar: string; room: string }) => void;
-  sendMessage: (msg: string) => void;
-  connectSocket: () => void;
-};
+  setSocket: (socket: Socket | null) => void;
+  addMessage: (msg: ChatMessage) => void;
 
-export const useGameStore = create<GameState>((set, get) => ({
-  username: "",
-  avatar: "",
-  room:"" ,// 🔒 Hardcoded room
-  socket: null,
-  messages: [],
+  resetStore: () => void; // 👈 NEW
+}
 
-  setUserInfo: ({ username, avatar,room }) =>
-    set({ username, avatar,room }),
+export const useGameStore = create<GameState>()(
+  persist(
+    (set) => ({
+      username: "",
+      avatar: "",
+      room: "",
+      socket: null,
+      messages: [],
 
-  sendMessage: (msg) => {
-    const { socket, username, room } = get();
-    if (!socket || !msg.trim()) return;
+      setUserInfo: ({ username, avatar, room }) =>
+        set({ username, avatar, room,messages:[] }),
 
-    socket.emit("chat-message", {
-      roomId: room,
-      user: username,
-      message: msg,
-    });
-  },
+      setSocket: (socket) => set({ socket }),
 
-  connectSocket: () => {
-    const { socket, room, username, avatar } = get();
+      addMessage: (msg) =>
+        set((state) => ({ messages: [...state.messages, msg] })),
 
-    if (socket || !room || !username || !avatar) return;
-
-    const newSocket = io("http://localhost:8000");
-
-    newSocket.on("connect", () => {
-      console.log("✅ Socket connected");
-
-      newSocket.emit("join-room", room, {
-        id: newSocket.id,
-        username,
-        avatar,
-      });
-
-      console.log("🟢 join-room sent", { room, username, avatar });
-    });
-
-    newSocket.on("chat-message", (msg: ChatMessage) => {
-      console.log("📩 New chat message:", msg);
-      set((state) => ({
-        messages: [...state.messages, msg],
-      }));
-    });
-
-    newSocket.on("chat-history", (history: ChatMessage[]) => {
-      set({ messages: history });
-    });
-
-    set({ socket: newSocket });
-  },
-}));
+      resetStore: () =>
+        set({
+          username: "",
+          avatar: "",
+          room: "",
+          socket: null,
+          messages: [],
+        }), // 👈 CLEAR EVERYTHING
+    }),
+    {
+      name: "phaser-multiplayer-store",
+      partialize: (state) => ({
+        username: state.username,
+        avatar: state.avatar,
+        room: state.room,
+        messages: state.messages,
+      }),
+    }
+  )
+);

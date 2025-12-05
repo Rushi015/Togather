@@ -1,37 +1,15 @@
 import { getUserSession } from "@/auth/core/session";
 import { cookies } from "next/headers";
 import Header from "../components/Header";
-import { prisma } from "database";
+
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 
 export default async function DashboardPage() {
- // const session = await getUserSession(await cookies());
 
 
-  // function getUserByDb(id: number) {
-  //   return prisma.user.findFirst({
-  //     select: {
-  //       email: true,
-  //     },
-  //     where: {
-  //       id: session?.userid,
-  //     },
-  //   });
-  // }
-  // if (session == null) {
-  //   console.log("session is null")
-  //   redirect("/sign-in");
-   
-  // }
-
-  // const fullUser = await getUserByDb(session.userid);
-
-  // if (fullUser == null) {
-  //   throw new Error("User not found in database");
-  //   return fullUser;
-  // }
+  
 
  
 

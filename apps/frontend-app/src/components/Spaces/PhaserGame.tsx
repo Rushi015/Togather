@@ -1,38 +1,63 @@
-'use client'
+"use client";
 
-import React, { useEffect, useRef } from 'react'
-import * as Phaser from 'phaser';
-import { GameScene } from './GameScene'
+import React, { useEffect, useRef } from "react";
+import * as Phaser from "phaser";
+import { GameScene } from "./GameScene";
+import { useGameStore } from "@/stores/useGameStore";
 
-const PhaserGame: React.FC = () => {
-  const gameRef = useRef<HTMLDivElement>(null)
-  const phaserGameRef = useRef<Phaser.Game | null>(null)
+type Props = {
+  roomId: string;
+  username: string;
+  avatar: string;
+};
+
+const PhaserGame: React.FC<Props> = ({ roomId }) => {
+  const gameRef = useRef<HTMLDivElement | null>(null);
+  const phaserGameRef = useRef<Phaser.Game | null>(null);
+
+  const username = useGameStore((s) => s.username);
+  const avatar = useGameStore((s) => s.avatar);
 
   useEffect(() => {
+    if (!roomId || !username || !avatar) {
+      console.warn("Waiting for username/avatar/roomId");
+      return;
+    }
+
     if (!phaserGameRef.current) {
       phaserGameRef.current = new Phaser.Game({
         type: Phaser.AUTO,
-        parent: gameRef.current!,
-        width: 1100,
+        parent: gameRef.current ?? undefined,
+        width: 1200,
         height: 700,
-        backgroundColor: '#3498db',
+        backgroundColor: "#3498db",
         physics: {
-          default: 'arcade',
-          arcade: {
-            debug: false,
-          },
+          default: "arcade",
+          arcade: { debug: false },
         },
         scene: [GameScene],
-      })
+      });
+
+      // Now start the scene with your data
+      phaserGameRef.current.scene.start("GameScene", {
+        roomId,
+        username,
+        avatar,
+      });
     }
 
     return () => {
-      phaserGameRef.current?.destroy(true)
-      phaserGameRef.current = null
-    }
-  }, [])
+      if (phaserGameRef.current) {
+        const scene = phaserGameRef.current.scene.getScene("GameScene") as any;
+        if (scene?.socket) scene.socket.disconnect();
 
-  return <div ref={gameRef} className=" h-full" />
-}
+        phaserGameRef.current.destroy(true);
+        phaserGameRef.current = null;
+      }
+    };
+  }, [roomId, username, avatar]);
 
-export default PhaserGame
+  return <div ref={gameRef} className="h-full w-full" />;
+};
+
+export default PhaserGame;
